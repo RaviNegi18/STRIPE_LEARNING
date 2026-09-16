@@ -12,7 +12,10 @@ connectDB()
 
 app.use(cors())
 //stripe webhook
-
+console.log(
+  "STRIPE KEY:",
+  process.env.STRIPE_SECRET_KEY?.slice(0, 12)
+);
 app.use(
     "/api/stripe/webhook",
     express.raw({type:"application/json"})
