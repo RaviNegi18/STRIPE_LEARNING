@@ -1,3 +1,4 @@
+
 import { useEffect, useState, type FormEvent } from "react";
 import {
   Elements,
@@ -13,12 +14,16 @@ const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 );
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const PaymentForm = ({ clientSecret }: { clientSecret: string }) => {
+// ===============================
+// Payment Form
+// ===============================
+
+const PaymentForm = () => {
   const stripe = useStripe();
   const elements = useElements();
-  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -33,106 +38,145 @@ const PaymentForm = ({ clientSecret }: { clientSecret: string }) => {
     setLoading(true);
     setMessage("");
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
+    const returnUrl = `${window.location.origin}/payment/success`;
+
+    const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/payment/success`,
+        return_url: returnUrl,
       },
-      redirect: "if_required",
     });
 
     if (error) {
+      console.error("Payment error:", error);
+
       setMessage(error.message ?? "Payment failed");
       setLoading(false);
-      return;
     }
 
-    if (paymentIntent?.status === "requires_action") {
-      const { error: nextActionError } = await stripe.handleNextAction({
-        clientSecret,
-      });
-
-      if (nextActionError) {
-        setMessage(nextActionError.message ?? "Authentication failed");
-        setLoading(false);
-        return;
-      }
-    }
-
-    if (paymentIntent?.status === "succeeded") {
-      navigate("/payment/success", { replace: true });
-      return;
-    }
-
-    setMessage("Payment is still processing. Please wait a moment.");
-    setLoading(false);
+    // If payment succeeds, Stripe handles the redirect
+    // to return_url.
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto w-full max-w-lg rounded-xl bg-white p-6 shadow-lg"
+    >
+      <h1 className="mb-6 text-2xl font-bold text-slate-900">
+        Complete Payment
+      </h1>
+
       <PaymentElement />
 
-      <button type="submit" disabled={!stripe || loading}>
+      <button
+        type="submit"
+        disabled={!stripe || !elements || loading}
+        className="mt-6 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
         {loading ? "Processing..." : "Pay Now"}
       </button>
 
-      {message && <p>{message}</p>}
+      {message && (
+        <p className="mt-4 text-center text-sm text-red-500">
+          {message}
+        </p>
+      )}
     </form>
   );
 };
 
+// ===============================
+// Payment Success
+// ===============================
+
 export const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
+
   const redirectStatus = searchParams.get("redirect_status");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-emerald-400">Payment successful</h1>
+        <h1 className="text-3xl font-bold text-emerald-400">
+          Payment Successful
+        </h1>
+
         <p className="mt-3 text-slate-300">
           {redirectStatus === "succeeded"
             ? "Your payment was completed successfully."
-            : "Your payment was completed successfully and the order is now confirmed."}
+            : "Your payment was completed successfully and your order is being confirmed."}
         </p>
       </div>
     </div>
   );
 };
 
-export const PaymentCancelled = () => (
-  <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-    <div className="text-center">
-      <h1 className="text-3xl font-bold text-amber-400">Payment cancelled</h1>
-      <p className="mt-3 text-slate-300">Your payment was cancelled. You can try again anytime.</p>
-      <button
-        onClick={() => window.location.href = "/cart"}
-        className="mt-6 rounded-lg bg-blue-600 px-5 py-3 font-semibold"
-      >
-        Back to cart
-      </button>
+// ===============================
+// Payment Cancelled
+// ===============================
+
+export const PaymentCancelled = () => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-amber-400">
+          Payment Cancelled
+        </h1>
+
+        <p className="mt-3 text-slate-300">
+          Your payment was cancelled. You can try again anytime.
+        </p>
+
+        <button
+          onClick={() => navigate("/cart")}
+          className="mt-6 rounded-lg bg-blue-600 px-5 py-3 font-semibold"
+        >
+          Back to Cart
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
+// ===============================
+// Payment Page
+// ===============================
 
 const Payment = () => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+
   const location = useLocation();
   const navigate = useNavigate();
 
-  const stateOrderId = (location.state as { orderId?: string } | null)?.orderId;
-  const orderId = stateOrderId || localStorage.getItem("lastOrderId");
+  const stateOrderId = (
+    location.state as { orderId?: string } | null
+  )?.orderId;
+
+  const orderId =
+    stateOrderId || localStorage.getItem("lastOrderId");
+
+  // ===============================
+  // Create PaymentIntent
+  // ===============================
 
   useEffect(() => {
     const createPaymentIntent = async () => {
       if (!orderId) {
-        setErrorMessage("No order found. Please start checkout again.");
+        setErrorMessage(
+          "No order found. Please start checkout again."
+        );
+
         navigate("/cart", { replace: true });
         return;
       }
 
       try {
         const token = localStorage.getItem("token");
+
         const response = await axios.post(
           `${API_URL}/payment/create-payment-intent`,
           {
@@ -147,14 +191,17 @@ const Payment = () => {
 
         setClientSecret(response.data.clientSecret);
       } catch (error: unknown) {
-        console.error(error);
+        console.error("Create PaymentIntent error:", error);
+
         if (axios.isAxiosError(error)) {
           setErrorMessage(
             error.response?.data?.message ||
               "Unable to start payment. Please try checkout again."
           );
         } else {
-          setErrorMessage("Unable to start payment. Please try checkout again.");
+          setErrorMessage(
+            "Unable to start payment. Please try checkout again."
+          );
         }
       }
     };
@@ -162,21 +209,30 @@ const Payment = () => {
     createPaymentIntent();
   }, [orderId, navigate]);
 
+  // ===============================
+  // Error State
+  // ===============================
+
   if (errorMessage) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
         <div className="text-center">
           <p className="text-red-400">{errorMessage}</p>
+
           <button
             onClick={() => navigate("/cart")}
             className="mt-5 rounded-lg bg-blue-600 px-5 py-3 font-semibold"
           >
-            Back to cart
+            Back to Cart
           </button>
         </div>
       </div>
     );
   }
+
+  // ===============================
+  // Loading State
+  // ===============================
 
   if (!clientSecret) {
     return (
@@ -186,17 +242,22 @@ const Payment = () => {
     );
   }
 
+  // ===============================
+  // Stripe PaymentElement
+  // ===============================
+
   return (
-    <Elements
-      stripe={stripePromise}
-      options={{
-        clientSecret,
-      }}
-    >
-      <PaymentForm clientSecret={clientSecret} />
-    </Elements>
+    <div className="min-h-screen bg-slate-950 px-6 py-12">
+      <Elements
+        stripe={stripePromise}
+        options={{
+          clientSecret,
+        }}
+      >
+        <PaymentForm />
+      </Elements>
+    </div>
   );
 };
 
-export default Payment;
-
+export default Payment
