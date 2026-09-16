@@ -9,7 +9,7 @@ const minimumPaymentAmounts: Record<string, number> = {
   cad: 50,
 };
 
-// so yha payment intennt or [payment checkout flow hai ye dono ko hum ek dusre ke alternative kah sakte hai yha par but the diff is checkout privide us built in  UI while payment interne me 
+// so yha payment intennt or [payment checkout flow hai ye dono ko hum ek dusre ke alternative kah sakte hai yha par but the diff is checkout privide us built in  UI while payment interne me
 // payment internt me hme khud se custom UI bnana padta hai]
 const createPaymentIntent = async (req: Request, res: Response) => {
   try {
@@ -54,6 +54,8 @@ const createPaymentIntent = async (req: Request, res: Response) => {
       },
     });
 
+    console.log("CREATED PAYMENT INTENT:", paymentIntent.id);
+    console.log("METADATA:", paymentIntent.metadata);
     // 4. Save Stripe PaymentIntent ID in our Order
     order.stripePaymentIntentId = paymentIntent.id;
     await order.save();
@@ -157,7 +159,6 @@ const createCheckoutSession = async (req: Request, res: Response) => {
   }
 };
 
-
 const stripeWebhook = async (req: Request, res: Response) => {
   const signature = req.headers["stripe-signature"];
 
@@ -174,7 +175,7 @@ const stripeWebhook = async (req: Request, res: Response) => {
     event = stripe.webhooks.constructEvent(
       req.body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string
+      process.env.STRIPE_WEBHOOK_SECRET as string,
     );
   } catch (error: unknown) {
     console.error("Webhook signature verification failed:", error);
@@ -238,8 +239,4 @@ const stripeWebhook = async (req: Request, res: Response) => {
   }
 };
 
-
-
-
-
-export { createPaymentIntent,createCheckoutSession,stripeWebhook };
+export { createPaymentIntent, createCheckoutSession, stripeWebhook };
