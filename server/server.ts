@@ -10,7 +10,7 @@ const PORT=5000;
 const app=express()
 connectDB()
 
-app.use(cors())
+// app.use(cors())
 //stripe webhook
 console.log(
   "STRIPE KEY:",
