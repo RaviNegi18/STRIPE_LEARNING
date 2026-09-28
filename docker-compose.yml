@@ -14,7 +14,7 @@ ports:
  environment:
  MONGO_URI:mongodb://localhost:27017/typescript
  depends_on:
- -mongo
+ -mong
 
  mongo:
  image:mongo:8
