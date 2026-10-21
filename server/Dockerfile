@@ -1,7 +1,11 @@
- FROM node:20
- WORKDIR /app
- COPY package.json package-lock.json ./
- RUN npm install
- COPY . .
- CMD ["npm","run","dev"]
- 
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN npm ci
+
+COPY . .
+
+CMD ["npm", "run", "dev"]

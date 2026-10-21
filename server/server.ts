@@ -1,5 +1,5 @@
 import express from "express"
-import userRoutes from "./../server/routes/auth.routes.js"
+import userRoutes from "./routes/auth.routes.js"
 import productRoutes from "./../server/routes/product.routes.ts"
 import connectDB from "./config/DB.ts";
 import orderRoutes from "./routes/order.routes.ts"
